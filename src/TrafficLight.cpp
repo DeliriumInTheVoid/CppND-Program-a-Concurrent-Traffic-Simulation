@@ -22,6 +22,7 @@ template <typename T>
 void MessageQueue<T>::send(T &&msg)
 {
     std::lock_guard<std::mutex> lock{_mutex};
+    _queue.clear();
     _queue.emplace_back(msg);
     _condition_var.notify_one();
 }
@@ -38,6 +39,7 @@ void TrafficLight::waitForGreen()
 
 TrafficLightPhase TrafficLight::getCurrentPhase()
 {
+    std::lock_guard<std::mutex> lock{_mutex};
     return _currentPhase;
 }
 
@@ -64,7 +66,9 @@ void TrafficLight::cycleThroughPhases()
         {
             duration = distribution(gen);
             start_time = std::chrono::high_resolution_clock::now();
+            std::unique_lock<std::mutex> u_lock{_mutex};
             _currentPhase = _currentPhase == TrafficLightPhase::red ? TrafficLightPhase::green : TrafficLightPhase::red;
+            u_lock.unlock();
             _msg_queue.send(std::move(_currentPhase));
         }
 
